@@ -71,4 +71,3 @@ Ensure that the Numbers API does not require an API key; otherwise, configure en
 
 ## Conclusion
 This API provides mathematical properties for numbers and retrieves fun facts from the Numbers API. Test thoroughly to ensure all requirements are met before deployment and submission.
-
