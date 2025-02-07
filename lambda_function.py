@@ -1,69 +1,74 @@
 import json
-import math
 import urllib.request
 
-# Check if the number is prime
-def is_prime(number):
-    if number < 2:
-        return False
-    for i in range(2, int(math.sqrt(number)) + 1):
-        if number % i == 0:
-            return False
-    return True
+def classify_number(number):
+    # Check if the number is prime
+    if number > 1:
+        for i in range(2, int(number ** 0.5) + 1):
+            if number % i == 0:
+                is_prime = False
+                break
+        else:
+            is_prime = True
+    else:
+        is_prime = False
 
-# Check if the number is an Armstrong number
-def is_armstrong(number):
+    # Check if the number is a perfect number
+    is_perfect = sum(i for i in range(1, number) if number % i == 0) == number
+
+    # Check if the number is Armstrong
     digits = [int(digit) for digit in str(number)]
-    num_of_digits = len(digits)
-    return number == sum(digit ** num_of_digits for digit in digits)
+    armstrong_check = sum(digit ** len(digits) for digit in digits)
+    is_armstrong = armstrong_check == number
 
-# Check if the number is perfect
-def is_perfect(number):
-    if number < 2:
-        return False
-    divisors = [i for i in range(1, number) if number % i == 0]
-    return sum(divisors) == number
+    # Sum of the digits
+    digit_sum = sum(digits)
 
-# Fetch a fun fact about the number from Numbers API
-def get_fun_fact(number):
+    # Determine properties
+    properties = []
+    if is_armstrong:
+        properties.append("armstrong")
+    properties.append("even" if number % 2 == 0 else "odd")
+
+    return is_prime, is_perfect, properties, digit_sum
+
+def fetch_fun_fact(number):
     try:
-        url = f"http://numbersapi.com/{number}/math?json"
-        response = urllib.request.urlopen(url)
-        data = json.loads(response.read())
-        return data.get("text", "No fun fact found.")
-    except Exception as e:
-        return "Unable to fetch fun fact."
+        url = f"http://numbersapi.com/{number}/math"
+        with urllib.request.urlopen(url) as response:
+            return response.read().decode()
+    except Exception:
+        return "Unable to fetch fun fact at the moment."
 
-# Lambda handler function
 def lambda_handler(event, context):
-    # Validate input number
     try:
         number = int(event["queryStringParameters"]["number"])
-    except (ValueError, TypeError):
+
+        is_prime, is_perfect, properties, digit_sum = classify_number(number)
+        fun_fact = fetch_fun_fact(number)
+
+        return {
+            "statusCode": 200,
+            "headers": {
+                "Content-Type": "application/json"
+            },
+            "body": json.dumps({
+                "number": number,
+                "is_prime": is_prime,
+                "is_perfect": is_perfect,
+                "properties": properties,
+                "digit_sum": digit_sum,
+                "fun_fact": fun_fact
+            })
+        }
+    except (ValueError, KeyError):
         return {
             "statusCode": 400,
+            "headers": {
+                "Content-Type": "application/json"
+            },
             "body": json.dumps({
-                "number": event["queryStringParameters"].get("number", "undefined"),
+                "number": event["queryStringParameters"].get("number", "invalid"),
                 "error": True
             })
         }
-
-    # Determine number properties
-    properties = []
-    if is_armstrong(number):
-        properties.append("armstrong")
-    properties.append("odd" if number % 2 != 0 else "even")
-
-    response = {
-        "number": number,
-        "is_prime": is_prime(number),
-        "is_perfect": is_perfect(number),
-        "properties": properties,
-        "digit_sum": sum(int(digit) for digit in str(number)),
-        "fun_fact": get_fun_fact(number)
-    }
-
-    return {
-        "statusCode": 200,
-        "body": json.dumps(response)
-    }
